@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import AVFoundation
 
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
@@ -7,111 +8,271 @@ struct ContentView: View {
     @State private var reviewResult: OutfitReview?
     @State private var errorMessage: String?
     @State private var isLoading: Bool = false
-    @State private var navigateToReview: Bool = false // Navigation trigger
-
+    @State private var navigateToReview: Bool = false
+    @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
+    @State private var capturedImage: UIImage?
+    
     let openAIService = OpenAIService()
-
+    
     var body: some View {
-        // Use NavigationView to enable NavigationLink and back button
         NavigationView {
-            VStack(spacing: 20) {
+            ZStack {
+                // Camera view fills the entire screen
+                CameraView(onImageCaptured: { image in
+                    handleCapturedImage(image)
+                })
+                .edgesIgnoringSafeArea(.all)
+                
+                // Overlay UI elements at the bottom
+                VStack {
+                    Spacer()
+                    
+                    HStack(spacing: 60) {
+                        // Photo picker button
+                        PhotosPicker(
+                            selection: $selectedItem,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Circle().fill(Color.black.opacity(0.7)))
+                        }
+                        
+                        // Camera capture button
+                        Button(action: {
+                            // Trigger camera capture (handled by CameraView)
+                            NotificationCenter.default.post(name: NSNotification.Name("CapturePhoto"), object: nil)
+                        }) {
+                            Image(systemName: "camera")
+                                .font(.system(size: 36))
+                                .foregroundColor(.white)
+                                .padding(24)
+                                .background(Circle().fill(Color.black.opacity(0.7)))
+                        }
+                        
+                        // Placeholder to balance the layout
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 24, height: 24)
+                            .padding()
+                    }
+                    .padding(.bottom, 40)
+                }
+                
+                // Loading overlay
                 if isLoading {
+                    Color.black.opacity(0.7)
+                        .edgesIgnoringSafeArea(.all)
+                    
                     ProgressView("Analyzing outfit...")
                         .padding()
-                } else {
-                    // Display the selected image preview if available
-                     if let selectedImageData, let uiImage = UIImage(data: selectedImageData) {
-                         Image(uiImage: uiImage)
-                             .resizable()
-                             .scaledToFit()
-                             .frame(maxHeight: 300) // Limit preview size
-                             .cornerRadius(8)
-                             .padding(.horizontal)
-                     } else {
-                         // Placeholder or instruction text
-                         Text("Select a photo of your outfit to get started.")
-                             .font(.headline)
-                             .foregroundColor(.gray)
-                             .padding()
-                     }
-
-
-                    // Photo Picker Button
-                    PhotosPicker(
-                        selection: $selectedItem,
-                        matching: .images, // Only allow images
-                        photoLibrary: .shared() // Use the shared photo library
-                    ) {
-                        Text("Select Outfit Photo")
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-                    .padding(.horizontal)
-                    // Handle changes in the selected photo item
-                    .onChange(of: selectedItem) { newItem in
-                        Task {
-                            isLoading = true // Start loading indicator
-                            errorMessage = nil // Clear previous errors
-                            reviewResult = nil // Clear previous results
-                            selectedImageData = nil // Clear previous image data
-                            navigateToReview = false // Reset navigation trigger
-
-                            // Load image data from the selected item
-                            if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                                selectedImageData = data
-                                if let image = UIImage(data: data) {
-                                    // Call the API service
-                                    do {
-                                        reviewResult = try await openAIService.fetchOutfitReview(image: image)
-                                        navigateToReview = true // Set flag to trigger navigation *after* API success
-                                    } catch {
-                                        errorMessage = "Error getting review: \(error.localizedDescription)"
-                                        print("API Error: \(error)") // Log detailed error
-                                    }
-                                } else {
-                                    errorMessage = "Could not load image."
-                                }
-                            } else if newItem != nil {
-                                // Handle case where loading data fails but an item was selected
-                                errorMessage = "Could not load image data."
-                            }
-                            // Reset selection if needed or keep it to show preview
-                            // selectedItem = nil // Uncomment if you want picker to reset fully
-
-                            isLoading = false // Stop loading indicator
-                        }
-                    }
-
-                    // Display error messages if any
-                    if let errorMessage = errorMessage {
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
+                }
+                
+                // Error message overlay
+                if let errorMessage = errorMessage {
+                    VStack {
+                        Spacer()
                         Text(errorMessage)
-                            .foregroundColor(.red)
+                            .foregroundColor(.white)
                             .padding()
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.7)))
+                            .padding(.bottom, 100)
                     }
                 }
-
-                // Hidden NavigationLink triggered by state
-                // This navigates *only* when navigateToReview is true and we have results
+                
+                // Camera permission denied overlay
+                if cameraPermission == .denied {
+                    Color.black.opacity(0.9)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    Text("Camera permission denied. Please change in settings to use.")
+                        .foregroundColor(.white)
+                        .padding()
+                }
+                
+                // Hidden NavigationLink for review
                 NavigationLink(
                     destination: ReviewView(
-                        imageData: selectedImageData ?? Data(), // Pass image data
-                        review: reviewResult ?? OutfitReview( // Pass review data or default
+                        imageData: selectedImageData ?? Data(),
+                        review: reviewResult ?? OutfitReview(
                             fit: ReviewParameter(score: 0, comment: "N/A"),
                             color: ReviewParameter(score: 0, comment: "N/A"),
                             texture: ReviewParameter(score: 0, comment: "N/A")
                         )
                     ),
-                    isActive: $navigateToReview // Bind navigation to the state flag
+                    isActive: $navigateToReview
                 ) {
-                    EmptyView() // Link is invisible, triggered programmatically
+                    EmptyView()
                 }
             }
-            .navigationTitle("Outfit Picker") // Set a title for the view
+            .navigationTitle("")
+            .navigationBarHidden(true)
+            .onAppear {
+                checkCameraPermission()
+            }
+            .onChange(of: selectedItem) { newItem in
+                handleSelectedItem(newItem)
+            }
         }
-        .navigationViewStyle(.stack) // Use stack style for standard navigation
+        .navigationViewStyle(.stack)
+    }
+    
+    private func checkCameraPermission() {
+        cameraPermission = AVCaptureDevice.authorizationStatus(for: .video)
+        
+        if cameraPermission == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    cameraPermission = granted ? .authorized : .denied
+                }
+            }
+        }
+    }
+    
+    private func handleSelectedItem(_ newItem: PhotosPickerItem?) {
+        Task {
+            isLoading = true
+            errorMessage = nil
+            reviewResult = nil
+            selectedImageData = nil
+            navigateToReview = false
+            
+            if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                selectedImageData = data
+                if let image = UIImage(data: data) {
+                    processImage(image)
+                } else {
+                    errorMessage = "Could not load image."
+                    isLoading = false
+                }
+            } else if newItem != nil {
+                errorMessage = "Could not load image data."
+                isLoading = false
+            } else {
+                isLoading = false
+            }
+        }
+    }
+    
+    private func handleCapturedImage(_ image: UIImage) {
+        isLoading = true
+        errorMessage = nil
+        reviewResult = nil
+        
+        // Convert UIImage to Data for storage and passing to review
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            selectedImageData = imageData
+            processImage(image)
+        } else {
+            errorMessage = "Could not process captured image."
+            isLoading = false
+        }
+    }
+    
+    private func processImage(_ image: UIImage) {
+        Task {
+            do {
+                reviewResult = try await openAIService.fetchOutfitReview(image: image)
+                navigateToReview = true
+            } catch {
+                errorMessage = "Error getting review: \(error.localizedDescription)"
+                print("API Error: \(error)")
+            }
+            isLoading = false
+        }
+    }
+}
+
+// Camera view using AVFoundation
+struct CameraView: UIViewRepresentable {
+    var onImageCaptured: (UIImage) -> Void
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: UIScreen.main.bounds)
+        let captureSession = AVCaptureSession()
+        context.coordinator.captureSession = captureSession
+        
+        guard let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+              let input = try? AVCaptureDeviceInput(device: backCamera) else {
+            return view
+        }
+        
+        if captureSession.canAddInput(input) {
+            captureSession.addInput(input)
+        }
+        
+        let photoOutput = AVCapturePhotoOutput()
+        context.coordinator.photoOutput = photoOutput
+        
+        if captureSession.canAddOutput(photoOutput) {
+            captureSession.addOutput(photoOutput)
+        }
+        
+        let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        previewLayer.frame = view.bounds
+        previewLayer.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(previewLayer)
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            captureSession.startRunning()
+        }
+        
+        // Register for photo capture notification
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.capturePhoto),
+            name: NSNotification.Name("CapturePhoto"),
+            object: nil
+        )
+        
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, AVCapturePhotoCaptureDelegate {
+        let parent: CameraView
+        var captureSession: AVCaptureSession?
+        var photoOutput: AVCapturePhotoOutput?
+        
+        init(_ parent: CameraView) {
+            self.parent = parent
+        }
+        
+        @objc func capturePhoto() {
+            guard let photoOutput = photoOutput else { return }
+            
+            let settings = AVCapturePhotoSettings()
+            if let previewPhotoPixelFormatType = settings.availablePreviewPhotoPixelFormatTypes.first {
+                settings.previewPhotoFormat = [kCVPixelBufferPixelFormatTypeKey as String: previewPhotoPixelFormatType]
+            }
+            
+            photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+        
+        func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+            if let error = error {
+                print("Error capturing photo: \(error)")
+                return
+            }
+            
+            guard let imageData = photo.fileDataRepresentation(),
+                  let image = UIImage(data: imageData) else {
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self.parent.onImageCaptured(image)
+            }
+        }
     }
 }
 
