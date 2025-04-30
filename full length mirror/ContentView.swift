@@ -11,6 +11,10 @@ struct ContentView: View {
     @State private var navigateToReview: Bool = false
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var capturedImage: UIImage?
+    @State private var showCreditView: Bool = false
+    
+    // Access the SnapsManager
+    @EnvironmentObject private var snapsManager: SnapsManager
     
     let openAIService = OpenAIService()
     
@@ -59,7 +63,15 @@ struct ContentView: View {
                             .frame(width: 24, height: 24)
                             .padding()
                     }
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 10) // Reduced padding to accommodate the pill below
+                    
+                    // Snaps pill under the camera button
+                    Button(action: {
+                        showCreditView = true
+                    }) {
+                        SnapsPillView(count: snapsManager.remainingSnaps)
+                    }
+                    .padding(.bottom, 30)
                 }
                 
                 // Loading overlay
@@ -108,6 +120,14 @@ struct ContentView: View {
                 ) {
                     EmptyView()
                 }
+                
+                // Navigation to CreditView
+                NavigationLink(
+                    destination: CreditView(),
+                    isActive: $showCreditView
+                ) {
+                    EmptyView()
+                }
             }
             .navigationTitle("")
             .navigationBarHidden(true)
@@ -134,6 +154,12 @@ struct ContentView: View {
     }
     
     private func handleSelectedItem(_ newItem: PhotosPickerItem?) {
+        // Check if user has available snaps
+        guard snapsManager.hasAvailableSnaps() else {
+            showCreditView = true
+            return
+        }
+        
         Task {
             isLoading = true
             errorMessage = nil
@@ -159,6 +185,12 @@ struct ContentView: View {
     }
     
     private func handleCapturedImage(_ image: UIImage) {
+        // Check if user has available snaps
+        guard snapsManager.hasAvailableSnaps() else {
+            showCreditView = true
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         reviewResult = nil
@@ -176,8 +208,14 @@ struct ContentView: View {
     private func processImage(_ image: UIImage) {
         Task {
             do {
-                reviewResult = try await openAIService.fetchOutfitReview(image: image)
-                navigateToReview = true
+                // Use a snap credit before processing
+                if snapsManager.useSnap() {
+                    reviewResult = try await openAIService.fetchOutfitReview(image: image)
+                    navigateToReview = true
+                } else {
+                    errorMessage = "No snaps remaining."
+                    showCreditView = true
+                }
             } catch {
                 errorMessage = "Error getting review: \(error.localizedDescription)"
                 print("API Error: \(error)")
