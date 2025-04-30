@@ -1,4 +1,7 @@
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.fulllengthmirror", category: "Review")
 
 struct ReviewView: View {
     let imageData: Data // Receive image data
@@ -31,6 +34,9 @@ struct ReviewView: View {
         .navigationTitle("Outfit Review") // Title for this view
         .navigationBarTitleDisplayMode(.inline) // Keep title small
         // The back button is automatically provided by NavigationView
+        .onAppear {
+            logger.info("Review page opened")
+        }
     }
 }
 

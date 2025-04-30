@@ -1,10 +1,14 @@
 import SwiftUI // For UIImage
 import Foundation
+import os
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.fulllengthmirror", category: "API")
 
 class OpenAIService {
 
     private let apiKey = Config.apiKey // Use the secure method from step 1
     private let apiURL = URL(string: "https://api.openai.com/v1/chat/completions")!
+    private var apiCallStartTime: Date?
 
     enum APIError: Error {
         case invalidURL
@@ -46,8 +50,11 @@ class OpenAIService {
 
 
     func fetchOutfitReview(image: UIImage) async throws -> OutfitReview {
+        apiCallStartTime = Date()
+        
         // 1. Convert UIImage to Base64
         guard let imageData = image.jpegData(compressionQuality: 0.8) else { // Use JPEG for smaller size
+            logger.error("Failed to convert image to JPEG data")
             throw APIError.dataConversionError
         }
         let base64ImageString = imageData.base64EncodedString()
@@ -84,13 +91,9 @@ class OpenAIService {
 
         do {
             request.httpBody = try JSONEncoder().encode(payload)
-            // Log the request payload for debugging
-            if let requestBody = String(data: request.httpBody!, encoding: .utf8) {
-                print("Request Payload: \(requestBody)")
-            }
         } catch {
-            print("Request Encoding Error: \(error)")
-            print("Error Details: \(error.localizedDescription)")
+            logger.error("Request Encoding Error: \(error)")
+            logger.error("Error Details: \(error.localizedDescription)")
             throw APIError.decodingError(error)
         }
 
@@ -100,30 +103,30 @@ class OpenAIService {
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
-            print("Network Error: \(error)")
-            print("Error Details: \(error.localizedDescription)")
+            logger.error("Network Error: \(error)")
+            logger.error("Error Details: \(error.localizedDescription)")
             throw APIError.requestFailed(error)
         }
 
         // 7. Check response status
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("Invalid Response Type: Response is not HTTPURLResponse")
+            logger.error("Invalid Response Type: Response is not HTTPURLResponse")
             throw APIError.invalidResponse
         }
 
         // Log response headers for debugging
-        print("Response Headers: \(httpResponse.allHeaderFields)")
-        print("Status Code: \(httpResponse.statusCode)")
+        logger.info("Response Headers: \(httpResponse.allHeaderFields)")
+        logger.info("Status Code: \(httpResponse.statusCode)")
 
         // Always try to print response body for debugging
         if let responseString = String(data: data, encoding: .utf8) {
-            print("Response Body: \(responseString)")
+            logger.info("Response Body: \(responseString)")
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            print("HTTP Error: \(httpResponse.statusCode)")
+            logger.error("HTTP Error: \(httpResponse.statusCode)")
             if let responseData = String(data: data, encoding: .utf8) {
-                print("Error Response: \(responseData)")
+                logger.error("Error Response: \(responseData)")
             }
             throw APIError.invalidResponse
         }
@@ -152,29 +155,34 @@ class OpenAIService {
         do {
             let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
             
+            if let responseTime = apiCallStartTime {
+                let timeInterval = Date().timeIntervalSince(responseTime) * 1000 // Convert to milliseconds
+                logger.info("API Response received successfully in \(timeInterval, privacy: .public) ms")
+            }
+            
             // Log model and usage information
             if let model = openAIResponse.model {
-                print("Model Used: \(model)")
+                logger.info("Model Used: \(model)")
             }
             if let usage = openAIResponse.usage {
-                print("Token Usage - Prompt: \(usage.prompt_tokens), Completion: \(usage.completion_tokens), Total: \(usage.total_tokens)")
+                logger.info("Token Usage - Prompt: \(usage.prompt_tokens), Completion: \(usage.completion_tokens), Total: \(usage.total_tokens)")
             }
             
             guard let firstChoice = openAIResponse.choices.first else {
-                print("No choices in response")
+                logger.error("No choices in response")
                 throw APIError.invalidResponse
             }
             
             // Log finish reason if available
             if let finishReason = firstChoice.finish_reason {
-                print("Finish Reason: \(finishReason)")
+                logger.info("Finish Reason: \(finishReason)")
             }
             
             let jsonContentString = firstChoice.message.content
-            print("Response Content: \(jsonContentString)")
+            logger.info("Received response: \(jsonContentString)")
             
             guard let jsonData = jsonContentString.data(using: .utf8) else {
-                print("Failed to convert content string to Data")
+                logger.error("Failed to convert content string to Data")
                 throw APIError.decodingError(NSError(domain: "OpenAIService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not convert content string to Data"]))
             }
             
@@ -182,16 +190,16 @@ class OpenAIService {
                 let outfitReview = try JSONDecoder().decode(OutfitReview.self, from: jsonData)
                 return outfitReview
             } catch {
-                print("Review JSON Parsing Error: \(error)")
-                print("Invalid JSON Content: \(jsonContentString)")
+                logger.error("Review JSON Parsing Error: \(error)")
+                logger.error("Invalid JSON Content: \(jsonContentString)")
                 throw APIError.decodingError(error)
             }
         } catch {
-            print("Response Decoding Error: \(error)")
-            if let jsonString = String(data: data, encoding: .utf8) {
-                print("Raw Response: \(jsonString)")
+            if let responseTime = apiCallStartTime {
+                let timeInterval = Date().timeIntervalSince(responseTime) * 1000 // Convert to milliseconds
+                logger.error("API call failed after \(timeInterval, privacy: .public) ms with error: \(error.localizedDescription)")
             }
-            throw APIError.decodingError(error)
+            throw error
         }
     }
 }

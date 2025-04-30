@@ -1,6 +1,9 @@
 import SwiftUI
 import PhotosUI
 import AVFoundation
+import os
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.fulllengthmirror", category: "UserFlow")
 
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
@@ -12,6 +15,7 @@ struct ContentView: View {
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var capturedImage: UIImage?
     @State private var showCreditView: Bool = false
+    @State private var interactionStartTime: Date?
     
     // Access the SnapsManager
     @EnvironmentObject private var snapsManager: SnapsManager
@@ -132,6 +136,7 @@ struct ContentView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .onAppear {
+                logger.info("App opened")
                 checkCameraPermission()
             }
             .onChange(of: selectedItem) { newItem in
@@ -154,6 +159,9 @@ struct ContentView: View {
     }
     
     private func handleSelectedItem(_ newItem: PhotosPickerItem?) {
+        logger.info("Photo picker opened")
+        interactionStartTime = Date()
+        
         // Check if user has available snaps
         guard snapsManager.hasAvailableSnaps() else {
             showCreditView = true
@@ -185,6 +193,9 @@ struct ContentView: View {
     }
     
     private func handleCapturedImage(_ image: UIImage) {
+        logger.info("Camera capture triggered")
+        interactionStartTime = Date()
+        
         // Check if user has available snaps
         guard snapsManager.hasAvailableSnaps() else {
             showCreditView = true
@@ -208,7 +219,11 @@ struct ContentView: View {
     private func processImage(_ image: UIImage) {
         Task {
             do {
-                // Use a snap credit before processing
+                if let startTime = interactionStartTime {
+                    let timeToAPI = Date().timeIntervalSince(startTime) * 1000 // Convert to milliseconds
+                    logger.info("Time to reach API: \(timeToAPI, privacy: .public) ms")
+                }
+                
                 if snapsManager.useSnap() {
                     reviewResult = try await openAIService.fetchOutfitReview(image: image)
                     navigateToReview = true
@@ -217,8 +232,8 @@ struct ContentView: View {
                     showCreditView = true
                 }
             } catch {
+                logger.error("Processing failed: \(error.localizedDescription)")
                 errorMessage = "Error getting review: \(error.localizedDescription)"
-                print("API Error: \(error)")
             }
             isLoading = false
         }
