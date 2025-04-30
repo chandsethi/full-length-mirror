@@ -3,7 +3,7 @@ import Foundation
 // Structure to hold the review for a single parameter
 struct ReviewParameter: Codable, Identifiable {
     let id = UUID() // For SwiftUI lists if needed later
-    var score: Int
+    var score: Double  // Changed from Int to Double to handle decimal scores
     var comment: String
 }
 
@@ -11,7 +11,7 @@ struct ReviewParameter: Codable, Identifiable {
 struct OutfitReview: Codable {
     var fit: ReviewParameter
     var color: ReviewParameter
-    var texture: ReviewParameter
+    var step_out_readiness: ReviewParameter  // Changed from texture to step_out_readiness
 }
 
 // Example structure for the API request payload

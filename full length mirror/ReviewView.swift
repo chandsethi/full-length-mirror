@@ -22,7 +22,7 @@ struct ReviewView: View {
                 // Display Review Details
                 ReviewSection(title: "Fit", parameter: review.fit)
                 ReviewSection(title: "Color", parameter: review.color)
-                ReviewSection(title: "Texture", parameter: review.texture)
+                ReviewSection(title: "Ready to Step Out?", parameter: review.step_out_readiness)
 
                 Spacer() // Push content to the top
             }
@@ -40,22 +40,40 @@ struct ReviewSection: View {
     let parameter: ReviewParameter
 
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.title2)
                 .fontWeight(.semibold)
-            HStack {
-                Text("Score:")
-                Text("\(parameter.score)/10")
-                    .fontWeight(.bold)
+            
+            HStack(spacing: 12) {
+                // Score circle
+                ZStack {
+                    Circle()
+                        .fill(scoreColor(parameter.score))
+                        .frame(width: 45, height: 45)
+                    Text(String(format: "%.1f", parameter.score))
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                }
+                
+                // Comment
+                Text(parameter.comment)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Comment:")
-            Text(parameter.comment)
-                .font(.body) // Standard body font
-                .padding(.leading, 5) // Indent comment slightly
         }
-        .padding(.vertical, 5) // Add some vertical spacing
-        Divider() // Separator between sections
+        .padding(.vertical, 10)
+        Divider()
+    }
+    
+    // Color based on score
+    private func scoreColor(_ score: Double) -> Color {
+        switch score {
+        case 4.5...5.0: return .green
+        case 3.5..<4.5: return .blue
+        case 2.5..<3.5: return .orange
+        default: return .red
+        }
     }
 }
 
@@ -66,9 +84,9 @@ struct ReviewView_Previews: PreviewProvider {
         // Create sample data for the preview
         let sampleImageData = UIImage(systemName: "tshirt.fill")?.pngData() ?? Data()
         let sampleReview = OutfitReview(
-            fit: ReviewParameter(score: 8, comment: "Fits well across the shoulders.\nSleeves are a good length."),
-            color: ReviewParameter(score: 6, comment: "Neutral color, versatile.\nCould use a pop of color in accessories."),
-            texture: ReviewParameter(score: 7, comment: "Standard cotton weave.\nLooks comfortable for daily wear.")
+            fit: ReviewParameter(score: 3.5, comment: "Sleeves slightly long, consider shortening for a sharper overall shape."),
+            color: ReviewParameter(score: 5.0, comment: "Color contrast is strong and works well with skin tone and hair."),
+            step_out_readiness: ReviewParameter(score: 2.5, comment: "Footwear missing — outfit feels incomplete for stepping outside.")
         )
 
         // Embed in NavigationView for preview context

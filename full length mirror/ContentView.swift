@@ -101,7 +101,7 @@ struct ContentView: View {
                         review: reviewResult ?? OutfitReview(
                             fit: ReviewParameter(score: 0, comment: "N/A"),
                             color: ReviewParameter(score: 0, comment: "N/A"),
-                            texture: ReviewParameter(score: 0, comment: "N/A")
+                            step_out_readiness: ReviewParameter(score: 0, comment: "N/A")
                         )
                     ),
                     isActive: $navigateToReview

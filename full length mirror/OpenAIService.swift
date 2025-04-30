@@ -19,27 +19,140 @@ class OpenAIService {
         // This prompt text comes directly from Mirror App (2).md, slightly adapted for clarity
         // and explicit JSON instructions.
         return """
-        You are a highly trained fashion evaluation assistant, specialized in assessing real-world mirror selfies. You are calibrated to notice garment structure, color dynamics, and fabric choices as they appear naturally in unposed, real-life images. You understand how to differentiate intentional style choices from genuine mistakes. Your role is to sharply judge how the outfit presents itself to an outside viewer based on clean technical criteria, not personal taste or body judgments. You prioritize practicality, appropriateness, and style cohesion, as seen through a mirror camera.
+        You are a highly trained fashion evaluation assistant, specialized in assessing real-world mirror selfies taken before someone leaves home.
 
-        Based on the provided image and the time of day (\(timeOfDay)), review the outfit on three parameters: Fit, Color, and Texture.
+        You are calibrated to sharply notice garment structure, color dynamics, and outfit completeness in unposed images.
 
-        Evaluation guidelines:
-        Fit: Good fit means garments follow natural body lines without pulling or sagging, shoulder seams align, sleeve and pant lengths are clean. Okay fit means slight looseness that appears intentional. Bad fit means pulling at buttons, sagging waist, pooling at ankles or wrists, drooping shoulders. Ignore body shape, body weight, and dynamic posing.
-        Color: Good color coordination means harmonious or pleasing contrast, compatible with skin tone and hair. Okay color coordination means one small odd pop if overall palette is cohesive. Bad color coordination means harsh clashing, overly busy color schemes, complete washout with skin tone. Ignore patterns versus clashing, respect traditional color combinations.
-        Texture: Good texture means seasonally appropriate fabrics and complementary textures. Okay texture means small mismatches that still feel balanced. Bad texture means jarring mismatches, inappropriate seasonal choices, excessive synthetic shine unless clearly intentional for style. Ignore wrinkling natural to fabrics like linen, ignore brand reputations.
+        You do **not** aim to be polite or generous — you are fair, but firm. You judge purely based on visual and technical criteria, not personal taste or body shape.
 
-        Your output **MUST** be a single JSON object containing exactly three keys: "fit", "color", and "texture". Each key's value must be another JSON object with exactly two fields:
-        1. "score": an integer between 1 and 10.
-        2. "comment": a short single paragraph (max two lines). The first line describes an issue or suggests an improvement, or states why it's good. The second line elaborates or gives a supporting point.
+        Your task is to review the outfit in the photo using **strict, real-world standards**.
 
-        Example JSON structure:
+        This is someone checking if they look good enough to step out.
+
+        You must **not** be a people pleaser.
+
+        Be honest. Be tough. Never inflate scores unnecessarily.
+
+        That said, don’t nitpick for the sake of harshness — only highlight meaningful issues or improvements.
+
+        ---
+
+        **Input:**
+
+        - Image: [attach image]
+
+        - Time of day: (\(timeOfDay))
+
+        ---
+
+        **Output:**
+
+        Return a **single JSON object** with exactly three keys: `fit`, `color`, and `step_out_readiness`.
+
+        Each key must contain:
+
+        - `score`: float from **0 to 5**, in **0.5 increments only**. Never use **4.0** unless unavoidable.
+
+        - `comment`: a **one-line** comment, less than 15 words, max 20.  
+          - First priority: if any sub-component scored poorly, mention the issue and suggest a fix if possible.  
+          - Second priority: if the overall score is above 4, highlight what makes the outfit good, specifically.
+
+        If judgment is difficult due to poor lighting or image clarity, clearly say so in the comment.
+
+        No greetings, no markdown, no explanations.
+
+        **Only JSON output.**
+
+        ---
+
+        **Scoring Methodology:**
+
+        Each parameter is scored out of 5.
+
+        **4 points come from fixed subcomponents**, and **1 point is reserved for visual judgment and stylistic nuance**.
+
+        All subcomponents must be scored independently and summed.
+
+        ---
+
+        **Fit (max 4):**
+
+        - Silhouette alignment (0–1.5): garments follow natural body lines; no pulling or sagging
+
+        - Length precision (0–1.0): sleeve, pant, and top lengths fall cleanly
+
+        - Shoulder/waist anchoring (0–0.75): seams align; waist stable
+
+        - Intentional looseness detection (0–0.75): relaxed styling identified correctly
+
+        ---
+
+        **Color (max 4):**
+
+        - Harmony or contrast (0–1.5): pleasing palette or strong intentional contrast
+
+        - Skin/hair complement (0–1.0): tones work well with the wearer’s natural coloring
+
+        - Accent item balance (0–0.75): standout items feel integrated, not random
+
+        - Clash/washout avoidance (0–0.75): avoids harsh clashing or blending into skin
+
+        ---
+
+        **Step-out Readiness (max 4):**
+
+        - Outfit completion (0–1.5): visible presence of top, bottom, and footwear
+
+        - Intentional styling (0–1.0): items look purposefully paired
+
+        - Contextual plausibility (0–0.75): outfit fits expected norms for stepping out at the given time
+
+        - Social acceptability signal (0–0.75): outfit appears reasonable for public view
+
+        ---
+
+        **Final rule:**
+
+        Total for each parameter = subcomponents (max 4.0) + visual discretion (max 1.0)
+
+        Total must be in 0.5 increments.
+
+        Minimum score is 0.0. Maximum is 5.0.
+
+        If any subcomponent cannot be judged due to poor input, state that in the relevant comment.
+
+        ---
+
+        **System message:**
+
+        You are a strict, zero-fluff fashion evaluator.
+
+        You must return exactly one JSON object with `fit`, `color`, and `step_out_readiness`.
+
+        Each must include a score (0–5, 0.5 increments) and a one-line comment under 15 words (max 20).
+
+        No explanations. No markdown. No text outside the JSON.
+
+        ---
+
+        **Sample Output Format:**
+
+        ```json
         {
-          "fit": { "score": 8, "comment": "The jeans stack nicely at the ankle.\nThis creates a clean silhouette." },
-          "color": { "score": 7, "comment": "Good neutral base with the grey shirt.\nA contrasting shoe could add interest." },
-          "texture": { "score": 9, "comment": "Seasonally appropriate cotton blend.\nLooks comfortable and breathable." }
+          "fit": {
+            "score": 3.5,
+            "comment": "Sleeves slightly long, consider shortening for a sharper overall shape."
+          },
+          "color": {
+            "score": 5.0,
+            "comment": "Color contrast is strong and works well with skin tone and hair."
+          },
+          "step_out_readiness": {
+            "score": 2.5,
+            "comment": "Footwear missing — outfit feels incomplete for stepping outside."
+          }
         }
 
-        Do not add *any* text outside this JSON object. Do not add explanations, greetings, or markdown formatting. Provide only the pure JSON response. If the image quality is too poor to judge a parameter confidently, mention this within that parameter's "comment".
         """
     }
 
@@ -62,7 +175,7 @@ class OpenAIService {
 
         // 4. Create the request payload
         let payload = OpenAIRequestPayload(
-            model: "gpt-4o", // Use a capable model like gpt-4o
+            model: "gpt-4.1-mini",  // Using the model from the latest OpenAI documentation
             messages: [
                 .init(role: "system", content: .string("You are a strict, no-nonsense outfit reviewer designed for a mirror selfie review app. You must output only valid JSON matching the requested structure.")),
                  .init(role: "user", content: .array([
@@ -83,8 +196,14 @@ class OpenAIService {
 
         do {
             request.httpBody = try JSONEncoder().encode(payload)
+            // Log the request payload for debugging
+            if let requestBody = String(data: request.httpBody!, encoding: .utf8) {
+                print("Request Payload: \(requestBody)")
+            }
         } catch {
-            throw APIError.decodingError(error) // Error encoding the request body
+            print("Request Encoding Error: \(error)")
+            print("Error Details: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
         }
 
         // 6. Perform the request
@@ -93,17 +212,30 @@ class OpenAIService {
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
+            print("Network Error: \(error)")
+            print("Error Details: \(error.localizedDescription)")
             throw APIError.requestFailed(error)
         }
 
         // 7. Check response status
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            // Log detailed error if possible
-            if let httpResponse = response as? HTTPURLResponse {
-                print("HTTP Status Code: \(httpResponse.statusCode)")
-                if let responseData = String(data: data, encoding: .utf8) {
-                     print("Error Response Body: \(responseData)")
-                 }
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("Invalid Response Type: Response is not HTTPURLResponse")
+            throw APIError.invalidResponse
+        }
+
+        // Log response headers for debugging
+        print("Response Headers: \(httpResponse.allHeaderFields)")
+        print("Status Code: \(httpResponse.statusCode)")
+
+        // Always try to print response body for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Response Body: \(responseString)")
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            print("HTTP Error: \(httpResponse.statusCode)")
+            if let responseData = String(data: data, encoding: .utf8) {
+                print("Error Response: \(responseData)")
             }
             throw APIError.invalidResponse
         }
@@ -113,30 +245,64 @@ class OpenAIService {
             struct Choice: Decodable {
                 struct Message: Decodable {
                     let role: String
-                    let content: String // The JSON string is expected here
+                    let content: String
                 }
                 let message: Message
+                let finish_reason: String? // Add this to see why the response might have ended
             }
             let choices: [Choice]
+            let model: String? // Add this to confirm which model was actually used
+            let usage: Usage? // Add this to see token usage
+        }
+
+        struct Usage: Decodable {
+            let prompt_tokens: Int
+            let completion_tokens: Int
+            let total_tokens: Int
         }
 
         do {
             let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
-            guard let firstChoice = openAIResponse.choices.first else {
-                throw APIError.invalidResponse // No choices returned
+            
+            // Log model and usage information
+            if let model = openAIResponse.model {
+                print("Model Used: \(model)")
             }
+            if let usage = openAIResponse.usage {
+                print("Token Usage - Prompt: \(usage.prompt_tokens), Completion: \(usage.completion_tokens), Total: \(usage.total_tokens)")
+            }
+            
+            guard let firstChoice = openAIResponse.choices.first else {
+                print("No choices in response")
+                throw APIError.invalidResponse
+            }
+            
+            // Log finish reason if available
+            if let finishReason = firstChoice.finish_reason {
+                print("Finish Reason: \(finishReason)")
+            }
+            
             let jsonContentString = firstChoice.message.content
-            // Now decode the JSON string within the content field
-             guard let jsonData = jsonContentString.data(using: .utf8) else {
-                 throw APIError.decodingError(NSError(domain: "OpenAIService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not convert content string to Data"]))
-             }
-            let outfitReview = try JSONDecoder().decode(OutfitReview.self, from: jsonData)
-            return outfitReview
+            print("Response Content: \(jsonContentString)")
+            
+            guard let jsonData = jsonContentString.data(using: .utf8) else {
+                print("Failed to convert content string to Data")
+                throw APIError.decodingError(NSError(domain: "OpenAIService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not convert content string to Data"]))
+            }
+            
+            do {
+                let outfitReview = try JSONDecoder().decode(OutfitReview.self, from: jsonData)
+                return outfitReview
+            } catch {
+                print("Review JSON Parsing Error: \(error)")
+                print("Invalid JSON Content: \(jsonContentString)")
+                throw APIError.decodingError(error)
+            }
         } catch {
-            print("Decoding Error: \(error)") // Log the specific decoding error
-             if let jsonString = String(data: data, encoding: .utf8) {
-                 print("Raw Response Data: \(jsonString)") // Log raw data on error
-             }
+            print("Response Decoding Error: \(error)")
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("Raw Response: \(jsonString)")
+            }
             throw APIError.decodingError(error)
         }
     }
