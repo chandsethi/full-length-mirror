@@ -22,10 +22,10 @@ struct ReviewView: View {
                         .foregroundColor(.red)
                 }
 
-                // Display Review Details
-                ReviewSection(title: "Fit", parameter: review.fit)
-                ReviewSection(title: "Color", parameter: review.color)
-                ReviewSection(title: "Ready to Step Out?", parameter: review.step_out_readiness)
+                // Display Review Details - now using orderedParameters
+                ForEach(review.orderedParameters, id: \.key) { parameter in
+                    ReviewSection(title: parameter.key.capitalized, parameter: parameter.value)
+                }
 
                 Spacer() // Push content to the top
             }
@@ -52,14 +52,19 @@ struct ReviewSection: View {
                 .fontWeight(.semibold)
             
             HStack(spacing: 12) {
-                // Score circle
+                // Score rectangle with formatted score
                 ZStack {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(scoreColor(parameter.score))
-                        .frame(width: 45, height: 45)
-                    Text(String(format: "%.1f", parameter.score))
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .frame(width: 65, height: 35)
+                    HStack(alignment: .bottom, spacing: 1) {
+                        Text(String(format: "%.1f", parameter.score))
+                            .font(.system(size: 20, weight: .bold))
+                        Text("/5")
+                            .font(.system(size: 12, weight: .medium))
+                            .offset(y: -2)
+                    }
+                    .foregroundColor(.white)
                 }
                 
                 // Comment
@@ -83,21 +88,37 @@ struct ReviewSection: View {
     }
 }
 
-
-// Add a Preview Provider for easier design iteration
+// Preview provider needs to be updated for the new model
 struct ReviewView_Previews: PreviewProvider {
     static var previews: some View {
         // Create sample data for the preview
         let sampleImageData = UIImage(systemName: "tshirt.fill")?.pngData() ?? Data()
-        let sampleReview = OutfitReview(
-            fit: ReviewParameter(score: 3.5, comment: "Sleeves slightly long, consider shortening for a sharper overall shape."),
-            color: ReviewParameter(score: 5.0, comment: "Color contrast is strong and works well with skin tone and hair."),
-            step_out_readiness: ReviewParameter(score: 2.5, comment: "Footwear missing — outfit feels incomplete for stepping outside.")
-        )
-
-        // Embed in NavigationView for preview context
-        NavigationView {
-            ReviewView(imageData: sampleImageData, review: sampleReview)
+        
+        // Create a JSON decoder
+        let decoder = JSONDecoder()
+        
+        // Sample JSON string
+        let jsonString = """
+        {
+            "parameters": {
+                "fit": {
+                    "score": 3.5,
+                    "comment": "Sleeves slightly long, consider shortening for a sharper overall shape."
+                },
+                "color": {
+                    "score": 5.0,
+                    "comment": "Color contrast is strong and works well with skin tone and hair."
+                }
+            }
+        }
+        """
+        
+        // Create preview view
+        if let jsonData = jsonString.data(using: .utf8),
+           let sampleReview = try? decoder.decode(OutfitReview.self, from: jsonData) {
+            NavigationView {
+                ReviewView(imageData: sampleImageData, review: sampleReview)
+            }
         }
     }
 }

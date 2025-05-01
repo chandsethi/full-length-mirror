@@ -22,6 +22,29 @@ struct ContentView: View {
     
     let openAIService = OpenAIService()
     
+    // Static fallback review
+    static let fallbackReview: OutfitReview = {
+        let jsonString = """
+        {
+            "parameters": {
+                "fit": {
+                    "score": 0.0,
+                    "comment": "N/A"
+                },
+                "color": {
+                    "score": 0.0,
+                    "comment": "N/A"
+                },
+                "readiness": {
+                    "score": 0.0,
+                    "comment": "N/A"
+                }
+            }
+        }
+        """
+        return try! JSONDecoder().decode(OutfitReview.self, from: jsonString.data(using: .utf8)!)
+    }()
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -114,11 +137,7 @@ struct ContentView: View {
                 NavigationLink(
                     destination: ReviewView(
                         imageData: selectedImageData ?? Data(),
-                        review: reviewResult ?? OutfitReview(
-                            fit: ReviewParameter(score: 0, comment: "N/A"),
-                            color: ReviewParameter(score: 0, comment: "N/A"),
-                            step_out_readiness: ReviewParameter(score: 0, comment: "N/A")
-                        )
+                        review: reviewResult ?? Self.fallbackReview
                     ),
                     isActive: $navigateToReview
                 ) {

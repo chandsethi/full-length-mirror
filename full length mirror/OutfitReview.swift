@@ -9,9 +9,42 @@ struct ReviewParameter: Codable, Identifiable {
 
 // Main structure for the entire outfit review JSON object
 struct OutfitReview: Codable {
-    var fit: ReviewParameter
-    var color: ReviewParameter
-    var step_out_readiness: ReviewParameter  // Changed from texture to step_out_readiness
+    private var parameters: [String: ReviewParameter]
+    private var parameterOrder: [String]  // To maintain order of parameters
+    
+    // Custom coding keys for maintaining order
+    private enum CodingKeys: String, CodingKey {
+        case parameters
+    }
+    
+    // Custom initializer from decoder
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        parameters = try container.decode([String: ReviewParameter].self, forKey: .parameters)
+        // Store keys in order they appear in JSON
+        parameterOrder = Array(parameters.keys)
+    }
+    
+    // Custom encoder to maintain structure
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(parameters, forKey: .parameters)
+    }
+    
+    // Access parameters in order
+    var orderedParameters: [(key: String, value: ReviewParameter)] {
+        parameterOrder.compactMap { key in
+            guard let param = parameters[key] else { return nil }
+            return (key, param)
+        }
+    }
+    
+    // Subscript access
+    subscript(key: String) -> ReviewParameter? {
+        get {
+            return parameters[key]
+        }
+    }
 }
 
 // Example structure for the API request payload
