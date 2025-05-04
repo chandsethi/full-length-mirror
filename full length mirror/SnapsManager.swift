@@ -20,7 +20,7 @@ struct SnapTransaction: Codable {
 class SnapsManager: ObservableObject {
     private enum Constants {
         static let snapsCountKey = "snapsCount"
-        static let initialSnapsCount = 10
+        static let initialSnapsCount = 100
         static let transactionLogFileName = "snap_transactions.json"
     }
     
