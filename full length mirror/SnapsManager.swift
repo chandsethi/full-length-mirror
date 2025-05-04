@@ -20,7 +20,6 @@ struct SnapTransaction: Codable {
 class SnapsManager: ObservableObject {
     private enum Constants {
         static let snapsCountKey = "snapsCount"
-        static let initialSnapsCount = 100
         static let transactionLogFileName = "snap_transactions.json"
     }
     
@@ -29,16 +28,16 @@ class SnapsManager: ObservableObject {
     static let shared = SnapsManager()
     
     private init() {
-        // Load the snap count from UserDefaults or use the initial value
-        self.remainingSnaps = UserDefaults.standard.integer(forKey: Constants.snapsCountKey)
+        // Always start with RemoteConfig value for testing
+        self.remainingSnaps = RemoteConfigManager.shared.initialSnapsCount
         
-        // If this is first launch (no snap count saved), set to initial value
-        if self.remainingSnaps == 0 {
-            self.remainingSnaps = Constants.initialSnapsCount
+        // If we have a stored value and it's not the first launch, use that instead
+        if UserDefaults.standard.object(forKey: Constants.snapsCountKey) != nil {
+            self.remainingSnaps = UserDefaults.standard.integer(forKey: Constants.snapsCountKey)
+        } else {
+            // First launch - use RemoteConfig value and save it
             UserDefaults.standard.set(self.remainingSnaps, forKey: Constants.snapsCountKey)
-            
-            // Log initial transaction
-            logTransaction(SnapTransaction(amount: Constants.initialSnapsCount, type: "init"))
+            logTransaction(SnapTransaction(amount: self.remainingSnaps, type: "init"))
         }
     }
     

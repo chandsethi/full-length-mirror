@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		EF6AAFCF2DC798E5003B072F /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = EF6AAFCE2DC798E5003B072F /* FirebaseAnalyticsWithoutAdIdSupport */; };
+		EF6AAFDD2DC7B10D003B072F /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = EF6AAFDC2DC7B10D003B072F /* FirebaseCrashlytics */; };
+		EF6AAFDF2DC7B10D003B072F /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = EF6AAFDE2DC7B10D003B072F /* FirebaseRemoteConfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EF6AAFDF2DC7B10D003B072F /* FirebaseRemoteConfig in Frameworks */,
 				EF6AAFCF2DC798E5003B072F /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
+				EF6AAFDD2DC7B10D003B072F /* FirebaseCrashlytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +75,8 @@
 			name = "full length mirror";
 			packageProductDependencies = (
 				EF6AAFCE2DC798E5003B072F /* FirebaseAnalyticsWithoutAdIdSupport */,
+				EF6AAFDC2DC7B10D003B072F /* FirebaseCrashlytics */,
+				EF6AAFDE2DC7B10D003B072F /* FirebaseRemoteConfig */,
 			);
 			productName = "full length mirror";
 			productReference = EF3E46AF2DC0303D00E7A1E1 /* full length mirror.app */;
@@ -352,6 +358,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = EF6AAFCD2DC798E5003B072F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAnalyticsWithoutAdIdSupport;
+		};
+		EF6AAFDC2DC7B10D003B072F /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EF6AAFCD2DC798E5003B072F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		EF6AAFDE2DC7B10D003B072F /* FirebaseRemoteConfig */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EF6AAFCD2DC798E5003B072F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseRemoteConfig;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

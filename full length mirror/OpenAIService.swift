@@ -18,14 +18,10 @@ class OpenAIService {
         case dataConversionError
     }
 
-    // Refined prompt incorporating JSON enforcement and schema
+    // Updated prompt creation to use Remote Config
     private func createPrompt(imageBase64: String, timeOfDay: String) -> String {
-        // Read the base prompt from file
-        guard let promptURL = Bundle.main.url(forResource: "OutfitPrompt", withExtension: "txt"),
-              let basePrompt = try? String(contentsOf: promptURL, encoding: .utf8) else {
-            // If file reading fails, return a minimal prompt to avoid crashing
-            return "Review the outfit in the photo. Return a JSON object with fit, color, and step_out_readiness scores and comments."
-        }
+        // Get the base prompt from Remote Config
+        let basePrompt = RemoteConfigManager.shared.outfitPrompt
         
         // Add the dynamic input section
         let inputSection = """
