@@ -9,12 +9,13 @@ struct ReviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 12) {
                 // Display the selected image
                 if let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFit()
+                        .frame(maxHeight: 250)
                         .cornerRadius(8)
                         .padding(.horizontal)
                 } else {
@@ -31,9 +32,9 @@ struct ReviewView: View {
             }
             .padding() // Add padding around the VStack content
         }
-        .navigationTitle("Outfit Review") // Title for this view
-        .navigationBarTitleDisplayMode(.inline) // Keep title small
-        // The back button is automatically provided by NavigationView
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        // Back gesture still works with the navigation bar hidden
         .onAppear {
             logger.info("Review page opened")
         }
@@ -73,7 +74,7 @@ struct ReviewSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
         Divider()
     }
     
