@@ -4,7 +4,7 @@ struct SnapsPillView: View {
     let count: Int
     
     var body: some View {
-        Text("\(count) snaps left")
+        Text(count <= 7 ? "\(count) snaps left" : "take a mirror selfie")
             .font(.body)
             .foregroundColor(.white)
             .padding(.horizontal, 12)

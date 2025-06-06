@@ -98,6 +98,7 @@ struct ContentView: View {
                     }) {
                         SnapsPillView(count: snapsManager.remainingSnaps)
                     }
+                    .frame(maxWidth: .infinity) // Center the pill
                     .padding(.bottom, 30)
                 }
                 
@@ -119,7 +120,13 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .padding()
                             .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.7)))
-                            .padding(.bottom, 100)
+                            .padding(.bottom, 200) // Move toast higher
+                    }
+                    .onAppear {
+                        // Auto-dismiss after 4 seconds
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                            self.errorMessage = nil
+                        }
                     }
                 }
                 
@@ -199,11 +206,11 @@ struct ContentView: View {
                 if let image = UIImage(data: data) {
                     processImage(image)
                 } else {
-                    errorMessage = "Could not load image."
+                    errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 1)"
                     isLoading = false
                 }
             } else if newItem != nil {
-                errorMessage = "Could not load image data."
+                errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 2)"
                 isLoading = false
             } else {
                 isLoading = false
@@ -230,7 +237,7 @@ struct ContentView: View {
             selectedImageData = imageData
             processImage(image)
         } else {
-            errorMessage = "Could not process captured image."
+            errorMessage = "Something wrong with the camera. We've taken a note. You could try again. (Err: 3)"
             isLoading = false
         }
     }
@@ -243,16 +250,21 @@ struct ContentView: View {
                     logger.info("Time to reach API: \(timeToAPI, privacy: .public) ms")
                 }
                 
+                reviewResult = try await openAIService.fetchOutfitReview(image: image)
+                
+                // Deduct a snap only after a successful review
                 if snapsManager.useSnap() {
-                    reviewResult = try await openAIService.fetchOutfitReview(image: image)
                     navigateToReview = true
                 } else {
+                    // This case should ideally not be reached if checks are done before,
+                    // but as a fallback, show an error.
                     errorMessage = "No snaps remaining."
                     showCreditView = true
                 }
+                
             } catch {
                 logger.error("Processing failed: \(error.localizedDescription)")
-                errorMessage = "Error getting review: \(error.localizedDescription)"
+                errorMessage = "Something went wrong. You could try again."
             }
             isLoading = false
         }
