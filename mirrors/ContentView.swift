@@ -6,7 +6,7 @@ import os
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.fulllengthmirror", category: "UserFlow")
 
 struct ContentView: View {
-    @State private var selectedItem: PhotosPickerItem?
+    @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedImageData: Data?
     @State private var reviewResult: OutfitReview?
     @State private var errorMessage: String?
@@ -60,7 +60,8 @@ struct ContentView: View {
                     HStack(spacing: 60) {
                         // Photo picker button
                         PhotosPicker(
-                            selection: $selectedItem,
+                            selection: $selectedItems,
+                            maxSelectionCount: 1,
                             matching: .images,
                             photoLibrary: .shared()
                         ) {
@@ -154,8 +155,12 @@ struct ContentView: View {
                 logger.info("App opened")
                 checkCameraPermission()
             }
-            .onChange(of: selectedItem) { newItem in
-                handleSelectedItem(newItem)
+            .onChange(of: selectedItems) { newItems in
+                guard let item = newItems.first else { return }
+                handleSelectedItem(item)
+                
+                // Clear selection to allow re-selecting the same image
+                self.selectedItems = []
             }
         }
         .navigationViewStyle(.stack)
@@ -173,7 +178,7 @@ struct ContentView: View {
         }
     }
     
-    private func handleSelectedItem(_ newItem: PhotosPickerItem?) {
+    private func handleSelectedItem(_ item: PhotosPickerItem) {
         logger.info("Photo picker opened")
         interactionStartTime = Date()
         
@@ -187,16 +192,22 @@ struct ContentView: View {
             errorMessage = nil
             reviewResult = nil
             
-            if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                selectedImageData = data
-                navigateToReview = true // Navigate immediately
-                if let image = UIImage(data: data) {
-                    processImage(image)
+            do {
+                if let data = try await item.loadTransferable(type: Data.self) {
+                    // Sanitize image to remove metadata and navigate
+                    if let image = UIImage(data: data), let sanitizedData = image.jpegData(compressionQuality: 0.8) {
+                        selectedImageData = sanitizedData
+                        navigateToReview = true // Navigate immediately
+                        processImage(image)
+                    } else {
+                        errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 1)"
+                    }
                 } else {
-                    errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 1)"
+                    errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 2)"
                 }
-            } else if newItem != nil {
-                errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 2)"
+            } catch {
+                errorMessage = "Failed to load image. Please try again."
+                logger.error("Failed to load image data from PhotosPickerItem: \(error.localizedDescription)")
             }
         }
     }
