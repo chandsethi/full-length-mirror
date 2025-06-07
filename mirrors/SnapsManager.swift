@@ -21,6 +21,9 @@ class SnapsManager: ObservableObject {
     private enum Constants {
         static let snapsCountKey = "snapsCount"
         static let transactionLogFileName = "snap_transactions.json"
+        static let keychainService = "com.mirrors.snaps"
+        static let keychainAccount = "user"
+        static let firstLaunchFlagValue = "true"
     }
     
     @Published private(set) var remainingSnaps: Int
@@ -28,16 +31,25 @@ class SnapsManager: ObservableObject {
     static let shared = SnapsManager()
     
     private init() {
-        // Always start with RemoteConfig value for testing
-        self.remainingSnaps = RemoteConfigManager.shared.initialSnapsCount
-        
-        // If we have a stored value and it's not the first launch, use that instead
-        if UserDefaults.standard.object(forKey: Constants.snapsCountKey) != nil {
+        let hasLaunchedBeforeData = KeychainHelper.get(service: Constants.keychainService, account: Constants.keychainAccount)
+        let hasLaunchedBefore = hasLaunchedBeforeData != nil
+
+        if hasLaunchedBefore {
+            // Not a true first launch. Could be a reinstall.
+            // Load from UserDefaults. If it's a reinstall, this will default to 0.
             self.remainingSnaps = UserDefaults.standard.integer(forKey: Constants.snapsCountKey)
         } else {
-            // First launch - use RemoteConfig value and save it
+            // True first launch
+            self.remainingSnaps = RemoteConfigManager.shared.initialSnapsCount
+            
+            // Save initial snaps to UserDefaults
             UserDefaults.standard.set(self.remainingSnaps, forKey: Constants.snapsCountKey)
             logTransaction(SnapTransaction(amount: self.remainingSnaps, type: "init"))
+            
+            // Set the flag in Keychain to prevent re-crediting on reinstall
+            if let firstLaunchData = Constants.firstLaunchFlagValue.data(using: .utf8) {
+                KeychainHelper.set(data: firstLaunchData, service: Constants.keychainService, account: Constants.keychainAccount)
+            }
         }
     }
     
