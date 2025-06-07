@@ -10,7 +10,6 @@ struct ContentView: View {
     @State private var selectedImageData: Data?
     @State private var reviewResult: OutfitReview?
     @State private var errorMessage: String?
-    @State private var isLoading: Bool = false
     @State private var navigateToReview: Bool = false
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var capturedImage: UIImage?
@@ -102,16 +101,6 @@ struct ContentView: View {
                     .padding(.bottom, 30)
                 }
                 
-                // Loading overlay
-                if isLoading {
-                    Color.black.opacity(0.7)
-                        .edgesIgnoringSafeArea(.all)
-                    
-                    ProgressView("Analyzing outfit...")
-                        .padding()
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
-                }
-                
                 // Error message overlay
                 if let errorMessage = errorMessage {
                     VStack {
@@ -144,7 +133,7 @@ struct ContentView: View {
                 NavigationLink(
                     destination: ReviewView(
                         imageData: selectedImageData ?? Data(),
-                        review: reviewResult ?? Self.fallbackReview
+                        review: reviewResult
                     ),
                     isActive: $navigateToReview
                 ) {
@@ -195,25 +184,19 @@ struct ContentView: View {
         }
         
         Task {
-            isLoading = true
             errorMessage = nil
             reviewResult = nil
-            selectedImageData = nil
-            navigateToReview = false
             
             if let data = try? await newItem?.loadTransferable(type: Data.self) {
                 selectedImageData = data
+                navigateToReview = true // Navigate immediately
                 if let image = UIImage(data: data) {
                     processImage(image)
                 } else {
                     errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 1)"
-                    isLoading = false
                 }
             } else if newItem != nil {
                 errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 2)"
-                isLoading = false
-            } else {
-                isLoading = false
             }
         }
     }
@@ -228,17 +211,16 @@ struct ContentView: View {
             return
         }
         
-        isLoading = true
         errorMessage = nil
         reviewResult = nil
         
         // Convert UIImage to Data for storage and passing to review
         if let imageData = image.jpegData(compressionQuality: 0.8) {
             selectedImageData = imageData
+            navigateToReview = true // Navigate immediately
             processImage(image)
         } else {
             errorMessage = "Something wrong with the camera. We've taken a note. You could try again. (Err: 3)"
-            isLoading = false
         }
     }
     
@@ -250,11 +232,11 @@ struct ContentView: View {
                     logger.info("Time to reach API: \(timeToAPI, privacy: .public) ms")
                 }
                 
-                reviewResult = try await openAIService.fetchOutfitReview(image: image)
+                let fetchedReview = try await openAIService.fetchOutfitReview(image: image)
                 
                 // Deduct a snap only after a successful review
                 if snapsManager.useSnap() {
-                    navigateToReview = true
+                    reviewResult = fetchedReview
                 } else {
                     // This case should ideally not be reached if checks are done before,
                     // but as a fallback, show an error.
@@ -266,7 +248,6 @@ struct ContentView: View {
                 logger.error("Processing failed: \(error.localizedDescription)")
                 errorMessage = "Something went wrong. You could try again."
             }
-            isLoading = false
         }
     }
 }

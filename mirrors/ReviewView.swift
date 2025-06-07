@@ -5,7 +5,7 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.full
 
 struct ReviewView: View {
     let imageData: Data // Receive image data
-    let review: OutfitReview // Receive the structured review
+    let review: OutfitReview? // Receive the structured review, now optional
 
     var body: some View {
         ScrollView {
@@ -23,18 +23,26 @@ struct ReviewView: View {
                         .foregroundColor(.red)
                 }
 
-                // Display Review Details - now using orderedParameters
-                ForEach(review.orderedParameters, id: \.key) { parameter in
-                    ReviewSection(title: parameter.key.capitalized, parameter: parameter.value)
+                // Display Review Details or loading state
+                if let review = review {
+                    ForEach(review.orderedParameters, id: \.key) { parameter in
+                        ReviewSection(title: parameter.key.capitalized, parameter: parameter.value)
+                    }
+                } else {
+                    VStack(spacing: 20) {
+                        Text("Checking you out. Give us a second...")
+                            .font(.headline)
+                        ProgressView()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 20)
                 }
 
                 Spacer() // Push content to the top
             }
             .padding() // Add padding around the VStack content
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
-        // Back gesture still works with the navigation bar hidden
+        .navigationTitle("mirrors")
         .onAppear {
             logger.info("Review page opened")
         }
@@ -117,9 +125,19 @@ struct ReviewView_Previews: PreviewProvider {
         // Create preview view
         if let jsonData = jsonString.data(using: .utf8),
            let sampleReview = try? decoder.decode(OutfitReview.self, from: jsonData) {
-            NavigationView {
-                ReviewView(imageData: sampleImageData, review: sampleReview)
+            Group {
+                NavigationView {
+                    ReviewView(imageData: sampleImageData, review: sampleReview)
+                }
+                .previewDisplayName("Loaded State")
+
+                NavigationView {
+                    ReviewView(imageData: sampleImageData, review: nil)
+                }
+                .previewDisplayName("Loading State")
             }
+        } else {
+            Text("Error creating preview")
         }
     }
 }
