@@ -12,6 +12,7 @@ class RemoteConfigManager {
     enum ConfigKeys {
         static let outfitPrompt = "outfit_prompt_text"
         static let initialSnapsCount = "initial_snaps_count"
+        static let openAIAPIKey = "oaikey"
     }
     
     // Default values
@@ -36,7 +37,8 @@ class RemoteConfigManager {
         // Set default values
         let defaults: [String: NSObject] = [
             ConfigKeys.initialSnapsCount: NSNumber(value: defaultSnapsCount),
-            ConfigKeys.outfitPrompt: defaultPrompt as NSString
+            ConfigKeys.outfitPrompt: defaultPrompt as NSString,
+            ConfigKeys.openAIAPIKey: "" as NSString
         ]
         remoteConfig.setDefaults(defaults)
         
@@ -67,6 +69,10 @@ class RemoteConfigManager {
             }
         }
         return remoteConfig[ConfigKeys.initialSnapsCount].numberValue.intValue
+    }
+    
+    var openAIAPIKey: String {
+        remoteConfig[ConfigKeys.openAIAPIKey].stringValue ?? ""
     }
     
     var outfitPrompt: String {

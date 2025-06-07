@@ -6,7 +6,6 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.full
 
 class OpenAIService {
 
-    private let apiKey = Config.apiKey // Use the secure method from step 1
     private let apiURL = URL(string: "https://api.openai.com/v1/chat/completions")!
     private var apiCallStartTime: Date?
 
@@ -47,6 +46,12 @@ class OpenAIService {
 
     func fetchOutfitReview(image: UIImage) async throws -> OutfitReview {
         apiCallStartTime = Date()
+
+        let apiKey = RemoteConfigManager.shared.openAIAPIKey
+        guard !apiKey.isEmpty else {
+            logger.error("OpenAI API Key is not configured in Remote Config.")
+            throw APIError.invalidResponse // Or a more specific error
+        }
         
         // 1. Convert UIImage to Base64
         guard let imageData = image.jpegData(compressionQuality: 0.8) else { // Use JPEG for smaller size
