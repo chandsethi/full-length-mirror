@@ -193,14 +193,20 @@ struct ContentView: View {
             reviewResult = nil
             
             do {
-                if let data = try await item.loadTransferable(type: Data.self) {
-                    // Sanitize image to remove metadata and navigate
-                    if let image = UIImage(data: data), let sanitizedData = image.jpegData(compressionQuality: 0.8) {
-                        selectedImageData = sanitizedData
-                        navigateToReview = true // Navigate immediately
-                        processImage(image)
+                if let swiftuiImage = try await item.loadTransferable(type: Image.self) {
+                    let renderer = ImageRenderer(content: swiftuiImage)
+                    
+                    if let uiImage = renderer.uiImage {
+                        // Sanitize image to remove metadata and navigate
+                        if let sanitizedData = uiImage.jpegData(compressionQuality: 0.8) {
+                            selectedImageData = sanitizedData
+                            navigateToReview = true // Navigate immediately
+                            processImage(uiImage)
+                        } else {
+                            errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 1)"
+                        }
                     } else {
-                        errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 1)"
+                        errorMessage = "Could not render image. Please try again."
                     }
                 } else {
                     errorMessage = "Something went wrong here. We've taken a note. You could try again. (Err: 2)"

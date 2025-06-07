@@ -1,5 +1,40 @@
 import Foundation
 import SwiftUI
+import Security
+
+// MARK: - Keychain Helper
+// Note: This was moved here to resolve a build issue.
+public struct KeychainHelper {
+    public static func set(data: Data, service: String, account: String) {
+        let query = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+            kSecValueData: data
+        ] as [String: Any]
+
+        SecItemDelete(query as CFDictionary)
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    public static func get(service: String, account: String) -> Data? {
+        let query = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+            kSecReturnData: kCFBooleanTrue!,
+            kSecMatchLimit: kSecMatchLimitOne
+        ] as [String: Any]
+
+        var dataTypeRef: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+
+        if status == errSecSuccess {
+            return dataTypeRef as? Data
+        }
+        return nil
+    }
+}
 
 // Model for tracking snap credit transactions
 struct SnapTransaction: Codable {
